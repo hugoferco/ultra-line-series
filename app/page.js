@@ -23,7 +23,7 @@ export default function Home() {
         {/* Logo */}
         <div className="w-64 md:w-80">
           <img 
-            src="/logos/ULS_2026_horizontal_blanc.png" 
+            src="/logos/ULS_2026_blanc.png" 
             alt="Ultra Line Series"
             className="w-full"
           />
