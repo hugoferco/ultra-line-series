@@ -10,6 +10,10 @@ const supabase = createClient(
 
 const MOT_DE_PASSE = 'uls2026'
 
+function generateToken() {
+  return Math.random().toString(36).substring(2) + Date.now().toString(36)
+}
+
 export default function Admin() {
   const [authentifie, setAuthentifie] = useState(false)
   const [mdp, setMdp] = useState('')
@@ -28,9 +32,7 @@ export default function Admin() {
   }
 
   useEffect(() => {
-    if (authentifie) {
-      fetchCandidatures()
-    }
+    if (authentifie) fetchCandidatures()
   }, [authentifie])
 
   const fetchCandidatures = async () => {
@@ -42,6 +44,25 @@ export default function Admin() {
     if (!error) setCandidatures(data)
     setLoading(false)
   }
+
+  const handleSelectionner = async (id) => {
+    const token = generateToken()
+    const { error } = await supabase
+      .from('candidatures')
+      .update({ selectionne: true, token })
+      .eq('id', id)
+    if (!error) fetchCandidatures()
+  }
+
+  const handleDeselectionner = async (id) => {
+    const { error } = await supabase
+      .from('candidatures')
+      .update({ selectionne: false, token: null })
+      .eq('id', id)
+    if (!error) fetchCandidatures()
+  }
+
+  const lienNFC = (token) => `${window.location.origin}/access/${token}`
 
   if (!authentifie) {
     return (
@@ -69,43 +90,102 @@ export default function Admin() {
     )
   }
 
+  const selectionnes = candidatures.filter(c => c.selectionne)
+  const enAttente = candidatures.filter(c => !c.selectionne)
+
   return (
     <main className="min-h-screen bg-black text-white px-8 py-12">
       <div className="max-w-5xl mx-auto">
-        
+
         <div className="flex justify-between items-center mb-12">
           <div>
             <p className="text-xs tracking-[0.4em] text-white/40 uppercase mb-2">Ultra Line Series</p>
             <h1 className="text-3xl font-black uppercase">Candidatures</h1>
           </div>
-          <span className="text-xs tracking-[0.3em] text-white/30 uppercase">{candidatures.length} dossiers</span>
+          <div className="flex gap-8 text-right">
+            <div>
+              <p className="text-xs tracking-[0.3em] text-white/30 uppercase">Total</p>
+              <p className="text-2xl font-black">{candidatures.length}</p>
+            </div>
+            <div>
+              <p className="text-xs tracking-[0.3em] text-white/30 uppercase">Selectionnes</p>
+              <p className="text-2xl font-black text-green-400">{selectionnes.length}</p>
+            </div>
+          </div>
         </div>
 
-        {loading ? (
-          <p className="text-white/30 text-xs tracking-widest text-center py-20">Chargement...</p>
-        ) : candidatures.length === 0 ? (
-          <p className="text-white/30 text-xs tracking-widest text-center py-20">Aucune candidature pour le moment</p>
-        ) : (
-          <div className="flex flex-col gap-4">
-            {candidatures.map((c) => (
-              <div key={c.id} className="border border-white/10 p-6 flex flex-col gap-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h2 className="text-lg font-black uppercase tracking-wide">{c.prenom} {c.nom}</h2>
-                    <p className="text-white/40 text-xs tracking-widest mt-1">{c.telephone} — {c.adresse}</p>
+        {/* Sélectionnés */}
+        {selectionnes.length > 0 && (
+          <div className="mb-12">
+            <p className="text-xs tracking-[0.4em] text-green-400/60 uppercase mb-4">Selectionnes — {selectionnes.length}</p>
+            <div className="flex flex-col gap-4">
+              {selectionnes.map((c) => (
+                <div key={c.id} className="border border-green-400/20 bg-green-400/5 p-6 flex flex-col gap-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h2 className="text-lg font-black uppercase tracking-wide">{c.prenom} {c.nom}</h2>
+                      <p className="text-white/40 text-xs tracking-widest mt-1">{c.telephone} — {c.adresse}</p>
+                    </div>
+                    <button
+                      onClick={() => handleDeselectionner(c.id)}
+                      className="text-[10px] tracking-[0.3em] text-red-400/60 uppercase hover:text-red-400 transition-all"
+                    >
+                      Retirer
+                    </button>
                   </div>
-                  <span className="text-[10px] tracking-[0.3em] text-white/20 uppercase">
-                    {new Date(c.created_at).toLocaleDateString('fr-FR')}
-                  </span>
+                  <div className="border-t border-white/5 pt-4">
+                    <p className="text-xs tracking-[0.3em] text-white/30 uppercase mb-2">Motivation</p>
+                    <p className="text-white/60 text-sm leading-relaxed">{c.motivation}</p>
+                  </div>
+                  {c.token && (
+                    <div className="border-t border-green-400/10 pt-4">
+                      <p className="text-xs tracking-[0.3em] text-green-400/60 uppercase mb-2">Lien NFC</p>
+                      <p className="text-green-400/80 text-xs font-mono break-all">{lienNFC(c.token)}</p>
+                    </div>
+                  )}
                 </div>
-                <div className="border-t border-white/5 pt-4">
-                  <p className="text-xs tracking-[0.3em] text-white/30 uppercase mb-2">Motivation</p>
-                  <p className="text-white/60 text-sm leading-relaxed">{c.motivation}</p>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
+
+        {/* En attente */}
+        <div>
+          <p className="text-xs tracking-[0.4em] text-white/30 uppercase mb-4">En attente — {enAttente.length}</p>
+          {loading ? (
+            <p className="text-white/30 text-xs tracking-widest text-center py-20">Chargement...</p>
+          ) : enAttente.length === 0 ? (
+            <p className="text-white/30 text-xs tracking-widest text-center py-20">Aucune candidature en attente</p>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {enAttente.map((c) => (
+                <div key={c.id} className="border border-white/10 p-6 flex flex-col gap-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h2 className="text-lg font-black uppercase tracking-wide">{c.prenom} {c.nom}</h2>
+                      <p className="text-white/40 text-xs tracking-widest mt-1">{c.telephone} — {c.adresse}</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="text-[10px] tracking-[0.3em] text-white/20 uppercase">
+                        {new Date(c.created_at).toLocaleDateString('fr-FR')}
+                      </span>
+                      <button
+                        onClick={() => handleSelectionner(c.id)}
+                        className="text-[10px] tracking-[0.3em] text-white/40 uppercase border border-white/20 px-4 py-2 hover:bg-white hover:text-black transition-all duration-300"
+                      >
+                        Selectionner
+                      </button>
+                    </div>
+                  </div>
+                  <div className="border-t border-white/5 pt-4">
+                    <p className="text-xs tracking-[0.3em] text-white/30 uppercase mb-2">Motivation</p>
+                    <p className="text-white/60 text-sm leading-relaxed">{c.motivation}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
       </div>
     </main>
