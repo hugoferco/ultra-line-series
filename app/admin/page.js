@@ -86,9 +86,10 @@ export default function Admin() {
   }
 
   const exportCSVCandidatures = () => {
-    const headers = ['Prenom', 'Nom', 'Telephone', 'Adresse', 'Motivation', 'Selectionne', 'Date']
+    const headers = ['Prenom', 'Nom', 'Telephone', 'Adresse', 'Prenom Binome', 'Nom Binome', 'Email Binome', 'Tel Binome', 'Motivation', 'Selectionne', 'Date']
     const rows = candidatures.map(c => [
       c.prenom, c.nom, c.telephone, c.adresse,
+      c.prenom_binome || '', c.nom_binome || '', c.email_binome || '', c.telephone_binome || '',
       `"${c.motivation?.replace(/"/g, '""')}"`,
       c.selectionne ? 'Oui' : 'Non',
       new Date(c.created_at).toLocaleDateString('fr-FR')
@@ -220,6 +221,13 @@ export default function Admin() {
                           </button>
                         </div>
                       </div>
+                      {(c.prenom_binome || c.nom_binome) && (
+                        <div className="bg-blue-100 rounded p-3 mb-3">
+                          <p className="text-[10px] text-blue-500 uppercase tracking-widest mb-1">Binôme</p>
+                          <p className="text-blue-800 text-xs font-bold uppercase">{c.prenom_binome} {c.nom_binome}</p>
+                          <p className="text-blue-600 text-xs mt-0.5">{c.email_binome} — {c.telephone_binome}</p>
+                        </div>
+                      )}
                       <p className="text-gray-600 text-sm leading-relaxed mb-3">{c.motivation}</p>
                       {c.token && (
                         <div className="bg-blue-100 rounded p-3">
@@ -256,6 +264,13 @@ export default function Admin() {
                           </button>
                         </div>
                       </div>
+                      {(c.prenom_binome || c.nom_binome) && (
+                        <div className="bg-gray-50 rounded p-3 mb-3">
+                          <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-1">Binôme</p>
+                          <p className="text-gray-700 text-xs font-bold uppercase">{c.prenom_binome} {c.nom_binome}</p>
+                          <p className="text-gray-500 text-xs mt-0.5">{c.email_binome} — {c.telephone_binome}</p>
+                        </div>
+                      )}
                       <p className="text-gray-600 text-sm leading-relaxed">{c.motivation}</p>
                     </div>
                   ))}

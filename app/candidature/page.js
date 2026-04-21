@@ -11,7 +11,9 @@ const supabase = createClient(
 
 export default function Candidature() {
   const [formData, setFormData] = useState({
-    nom: '', prenom: '', adresse: '', telephone: '', motivation: ''
+    nom: '', prenom: '', adresse: '', telephone: '',
+    prenom_binome: '', nom_binome: '', email_binome: '', telephone_binome: '',
+    motivation: ''
   })
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -51,7 +53,7 @@ export default function Candidature() {
 
   return (
     <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-8 py-16">
-      
+
       {/* Header */}
       <div className="w-full max-w-xl mb-12 text-center">
         <p className="text-xs tracking-[0.4em] text-white/40 uppercase mb-4">Ultra Line Series — Édition 00</p>
@@ -64,72 +66,145 @@ export default function Candidature() {
       </div>
 
       {/* Formulaire */}
-      <form onSubmit={handleSubmit} className="w-full max-w-xl flex flex-col gap-6">
-        
-        <div className="flex gap-4">
-          <div className="flex-1 flex flex-col gap-2">
-            <label className="text-[10px] tracking-[0.3em] text-white/40 uppercase">Prénom</label>
+      <form onSubmit={handleSubmit} className="w-full max-w-xl flex flex-col gap-8">
+
+        {/* Participant 1 */}
+        <div className="flex flex-col gap-6">
+          <p className="text-[10px] tracking-[0.4em] text-white/40 uppercase border-b border-white/10 pb-3">
+            Participant 1 — Vous
+          </p>
+
+          <div className="flex gap-4">
+            <div className="flex-1 flex flex-col gap-2">
+              <label className="text-[10px] tracking-[0.3em] text-white/40 uppercase">Prénom</label>
+              <input
+                type="text"
+                name="prenom"
+                required
+                value={formData.prenom}
+                onChange={handleChange}
+                className="bg-transparent border border-white/10 text-white text-sm px-4 py-3 focus:outline-none focus:border-white/40 transition-all placeholder:text-white/20"
+                placeholder="Jean"
+              />
+            </div>
+            <div className="flex-1 flex flex-col gap-2">
+              <label className="text-[10px] tracking-[0.3em] text-white/40 uppercase">Nom</label>
+              <input
+                type="text"
+                name="nom"
+                required
+                value={formData.nom}
+                onChange={handleChange}
+                className="bg-transparent border border-white/10 text-white text-sm px-4 py-3 focus:outline-none focus:border-white/40 transition-all placeholder:text-white/20"
+                placeholder="Dupont"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-[10px] tracking-[0.3em] text-white/40 uppercase">Adresse</label>
             <input
               type="text"
-              name="prenom"
+              name="adresse"
               required
-              value={formData.prenom}
+              value={formData.adresse}
               onChange={handleChange}
               className="bg-transparent border border-white/10 text-white text-sm px-4 py-3 focus:outline-none focus:border-white/40 transition-all placeholder:text-white/20"
-              placeholder="Jean"
+              placeholder="12 rue de la Montagne, 75001 Paris"
             />
           </div>
-          <div className="flex-1 flex flex-col gap-2">
-            <label className="text-[10px] tracking-[0.3em] text-white/40 uppercase">Nom</label>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-[10px] tracking-[0.3em] text-white/40 uppercase">Téléphone</label>
             <input
-              type="text"
-              name="nom"
+              type="tel"
+              name="telephone"
               required
-              value={formData.nom}
+              value={formData.telephone}
               onChange={handleChange}
               className="bg-transparent border border-white/10 text-white text-sm px-4 py-3 focus:outline-none focus:border-white/40 transition-all placeholder:text-white/20"
-              placeholder="Dupont"
+              placeholder="+33 6 00 00 00 00"
             />
           </div>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-[10px] tracking-[0.3em] text-white/40 uppercase">Adresse</label>
-          <input
-            type="text"
-            name="adresse"
-            required
-            value={formData.adresse}
-            onChange={handleChange}
-            className="bg-transparent border border-white/10 text-white text-sm px-4 py-3 focus:outline-none focus:border-white/40 transition-all placeholder:text-white/20"
-            placeholder="12 rue de la Montagne, 75001 Paris"
-          />
+        {/* Participant 2 */}
+        <div className="flex flex-col gap-6">
+          <p className="text-[10px] tracking-[0.4em] text-white/40 uppercase border-b border-white/10 pb-3">
+            Participant 2 — Binôme
+          </p>
+
+          <div className="flex gap-4">
+            <div className="flex-1 flex flex-col gap-2">
+              <label className="text-[10px] tracking-[0.3em] text-white/40 uppercase">Prénom</label>
+              <input
+                type="text"
+                name="prenom_binome"
+                required
+                value={formData.prenom_binome}
+                onChange={handleChange}
+                className="bg-transparent border border-white/10 text-white text-sm px-4 py-3 focus:outline-none focus:border-white/40 transition-all placeholder:text-white/20"
+                placeholder="Marie"
+              />
+            </div>
+            <div className="flex-1 flex flex-col gap-2">
+              <label className="text-[10px] tracking-[0.3em] text-white/40 uppercase">Nom</label>
+              <input
+                type="text"
+                name="nom_binome"
+                required
+                value={formData.nom_binome}
+                onChange={handleChange}
+                className="bg-transparent border border-white/10 text-white text-sm px-4 py-3 focus:outline-none focus:border-white/40 transition-all placeholder:text-white/20"
+                placeholder="Dupont"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-[10px] tracking-[0.3em] text-white/40 uppercase">Email</label>
+            <input
+              type="email"
+              name="email_binome"
+              required
+              value={formData.email_binome}
+              onChange={handleChange}
+              className="bg-transparent border border-white/10 text-white text-sm px-4 py-3 focus:outline-none focus:border-white/40 transition-all placeholder:text-white/20"
+              placeholder="marie@email.com"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-[10px] tracking-[0.3em] text-white/40 uppercase">Téléphone</label>
+            <input
+              type="tel"
+              name="telephone_binome"
+              required
+              value={formData.telephone_binome}
+              onChange={handleChange}
+              className="bg-transparent border border-white/10 text-white text-sm px-4 py-3 focus:outline-none focus:border-white/40 transition-all placeholder:text-white/20"
+              placeholder="+33 6 00 00 00 00"
+            />
+          </div>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-[10px] tracking-[0.3em] text-white/40 uppercase">Téléphone</label>
-          <input
-            type="tel"
-            name="telephone"
-            required
-            value={formData.telephone}
-            onChange={handleChange}
-            className="bg-transparent border border-white/10 text-white text-sm px-4 py-3 focus:outline-none focus:border-white/40 transition-all placeholder:text-white/20"
-            placeholder="+33 6 00 00 00 00"
-          />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-[10px] tracking-[0.3em] text-white/40 uppercase">Parcours sportif & motivation</label>
-          <textarea
-            name="motivation"
-            required
-            rows={6}
-            value={formData.motivation}
-            onChange={handleChange}
-            className="bg-transparent border border-white/10 text-white text-sm px-4 py-3 focus:outline-none focus:border-white/40 transition-all placeholder:text-white/20 resize-none"
-            placeholder="Décrivez votre parcours sportif, vos expériences en course, et pourquoi vous souhaitez vivre l'expérience ULS..."
-          />
+        {/* Motivation */}
+        <div className="flex flex-col gap-6">
+          <p className="text-[10px] tracking-[0.4em] text-white/40 uppercase border-b border-white/10 pb-3">
+            Votre candidature
+          </p>
+          <div className="flex flex-col gap-2">
+            <label className="text-[10px] tracking-[0.3em] text-white/40 uppercase">Parcours sportif & motivation</label>
+            <textarea
+              name="motivation"
+              required
+              rows={6}
+              value={formData.motivation}
+              onChange={handleChange}
+              className="bg-transparent border border-white/10 text-white text-sm px-4 py-3 focus:outline-none focus:border-white/40 transition-all placeholder:text-white/20 resize-none"
+              placeholder="Décrivez votre parcours sportif, vos expériences en course, et pourquoi vous souhaitez vivre l'expérience ULS..."
+            />
+          </div>
         </div>
 
         {status === 'error' && (
