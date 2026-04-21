@@ -23,6 +23,9 @@ export default function Admin() {
   const [inscriptions, setInscriptions] = useState([])
   const [loading, setLoading] = useState(false)
 
+  // PPS editing state: { [inscriptionId]: { pps1: string, pps2: string, saving: bool, saved: bool } }
+  const [ppsEdits, setPpsEdits] = useState({})
+
   const handleLogin = (e) => {
     e.preventDefault()
     if (mdp === MOT_DE_PASSE) { setAuthentifie(true); setErreur(false) }
@@ -42,7 +45,20 @@ export default function Admin() {
 
   const fetchInscriptions = async () => {
     const { data } = await supabase.from('inscriptions').select('*').order('created_at', { ascending: false })
-    if (data) setInscriptions(data)
+    if (data) {
+      setInscriptions(data)
+      // Init pps edit state from DB values
+      const init = {}
+      data.forEach(i => {
+        init[i.id] = {
+          pps1: i.code_pps || '',
+          pps2: i.code_pps_binome || '',
+          saving: false,
+          saved: false,
+        }
+      })
+      setPpsEdits(init)
+    }
   }
 
   const handleSelectionner = async (id) => {
@@ -68,6 +84,28 @@ export default function Admin() {
     fetchInscriptions()
   }
 
+  const handlePpsChange = (id, field, value) => {
+    setPpsEdits(prev => ({
+      ...prev,
+      [id]: { ...prev[id], [field]: value, saved: false }
+    }))
+  }
+
+  const handleSavePps = async (id) => {
+    const edit = ppsEdits[id]
+    if (!edit) return
+    setPpsEdits(prev => ({ ...prev, [id]: { ...prev[id], saving: true } }))
+    await supabase.from('inscriptions').update({
+      code_pps: edit.pps1 || null,
+      code_pps_binome: edit.pps2 || null,
+    }).eq('id', id)
+    setPpsEdits(prev => ({ ...prev, [id]: { ...prev[id], saving: false, saved: true } }))
+    // Reset saved indicator after 2s
+    setTimeout(() => {
+      setPpsEdits(prev => ({ ...prev, [id]: { ...prev[id], saved: false } }))
+    }, 2000)
+  }
+
   const exportCSVCandidatures = () => {
     const headers = ['Prenom', 'Nom', 'Telephone', 'Adresse', 'Motivation', 'Selectionne', 'Date']
     const rows = candidatures.map(c => [
@@ -83,9 +121,11 @@ export default function Admin() {
   }
 
   const exportCSVInscriptions = () => {
-    const headers = ['Prenom Binome', 'Nom Binome', 'Email Binome', 'Tel Binome', 'Paye', 'Date']
+    const headers = ['Prenom Binome', 'Nom Binome', 'Email Binome', 'Tel Binome', 'Code PPS Participant', 'Code PPS Binome', 'Paye', 'Date']
     const rows = inscriptions.map(i => [
       i.prenom_binome, i.nom_binome, i.email_binome, i.telephone_binome,
+      i.code_pps || '',
+      i.code_pps_binome || '',
       i.paye ? 'Oui' : 'Non',
       new Date(i.created_at).toLocaleDateString('fr-FR')
     ])
@@ -102,7 +142,8 @@ export default function Admin() {
     selectionnes: candidatures.filter(c => c.selectionne).length,
     inscrits: inscriptions.length,
     payes: inscriptions.filter(i => i.paye).length,
-    ca: inscriptions.filter(i => i.paye).length * 890
+    ca: inscriptions.filter(i => i.paye).length * 890,
+    ppsRenseignes: inscriptions.filter(i => i.code_pps || i.code_pps_binome).length,
   }
 
   if (!authentifie) {
@@ -131,7 +172,7 @@ export default function Admin() {
 
   return (
     <main className="min-h-screen bg-gray-50 text-gray-900">
-      
+
       {/* Topbar */}
       <div className="bg-white border-b border-gray-200 px-8 py-4 flex justify-between items-center">
         <div className="flex items-center gap-4">
@@ -144,12 +185,13 @@ export default function Admin() {
       <div className="max-w-6xl mx-auto px-8 py-10">
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-10">
           {[
             { label: 'Candidatures', value: stats.total, color: 'text-gray-900' },
             { label: 'Selectionnes', value: stats.selectionnes, color: 'text-blue-600' },
             { label: 'Inscrits', value: stats.inscrits, color: 'text-orange-500' },
             { label: 'Payes', value: stats.payes, color: 'text-green-600' },
+            { label: 'PPS renseignes', value: stats.ppsRenseignes, color: 'text-purple-600' },
             { label: 'CA Total', value: `${stats.ca} EUR`, color: 'text-green-600' },
           ].map((s) => (
             <div key={s.label} className="bg-white border border-gray-200 rounded-lg p-5">
@@ -259,25 +301,81 @@ export default function Admin() {
             <div className="flex flex-col gap-3">
               {inscriptions.length === 0 ? (
                 <p className="text-gray-400 text-sm text-center py-20">Aucune inscription</p>
-              ) : inscriptions.map((i) => (
-                <div key={i.id} className={`rounded-lg border p-5 flex justify-between items-start ${i.paye ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}>
-                  <div>
-                    <div className="flex items-center gap-3 mb-1">
-                      <h2 className="font-black uppercase text-gray-900">{i.prenom_binome} {i.nom_binome}</h2>
-                      <span className={`text-[10px] tracking-widest uppercase px-2 py-1 rounded font-bold ${i.paye ? 'bg-green-200 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                        {i.paye ? 'Paye' : 'En attente'}
-                      </span>
+              ) : inscriptions.map((i) => {
+                const edit = ppsEdits[i.id] || { pps1: '', pps2: '', saving: false, saved: false }
+                const pps1Renseigne = !!i.code_pps
+                const pps2Renseigne = !!i.code_pps_binome
+                return (
+                  <div key={i.id} className={`rounded-lg border p-5 ${i.paye ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}>
+                    {/* Header */}
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <div className="flex items-center gap-3 mb-1">
+                          <h2 className="font-black uppercase text-gray-900">{i.prenom_binome} {i.nom_binome}</h2>
+                          <span className={`text-[10px] tracking-widest uppercase px-2 py-1 rounded font-bold ${i.paye ? 'bg-green-200 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                            {i.paye ? 'Paye' : 'En attente'}
+                          </span>
+                          {(pps1Renseigne || pps2Renseigne) && (
+                            <span className="text-[10px] tracking-widest uppercase px-2 py-1 rounded font-bold bg-purple-100 text-purple-700">
+                              PPS {pps1Renseigne && pps2Renseigne ? '✓✓' : '✓'}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-gray-500 text-xs">{i.email_binome} — {i.telephone_binome}</p>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="text-xs text-gray-300">{new Date(i.created_at).toLocaleDateString('fr-FR')}</span>
+                        <button onClick={() => handleSupprimerInscription(i.id)} className="text-xs text-red-500 hover:text-red-700 uppercase tracking-widest transition-all">
+                          Supprimer
+                        </button>
+                      </div>
                     </div>
-                    <p className="text-gray-500 text-xs">{i.email_binome} — {i.telephone_binome}</p>
+
+                    {/* Bloc PPS */}
+                    <div className="border border-purple-100 bg-purple-50 rounded-lg p-4">
+                      <p className="text-xs text-purple-600 uppercase tracking-widest font-bold mb-3">Codes PPS</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[10px] text-gray-400 uppercase tracking-widest mb-1">
+                            Participant principal
+                          </label>
+                          <input
+                            type="text"
+                            value={edit.pps1}
+                            onChange={(e) => handlePpsChange(i.id, 'pps1', e.target.value)}
+                            placeholder="Ex: PPS-2026-0042"
+                            className="w-full border border-purple-200 bg-white text-gray-900 text-sm px-3 py-2 rounded font-mono focus:outline-none focus:border-purple-400 transition-all placeholder:text-gray-300"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-400 uppercase tracking-widest mb-1">
+                            Binôme — {i.prenom_binome} {i.nom_binome}
+                          </label>
+                          <input
+                            type="text"
+                            value={edit.pps2}
+                            onChange={(e) => handlePpsChange(i.id, 'pps2', e.target.value)}
+                            placeholder="Ex: PPS-2026-0043"
+                            className="w-full border border-purple-200 bg-white text-gray-900 text-sm px-3 py-2 rounded font-mono focus:outline-none focus:border-purple-400 transition-all placeholder:text-gray-300"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-end mt-3 gap-3">
+                        {edit.saved && (
+                          <span className="text-xs text-green-600 uppercase tracking-widest">Sauvegarde ✓</span>
+                        )}
+                        <button
+                          onClick={() => handleSavePps(i.id)}
+                          disabled={edit.saving}
+                          className="text-xs bg-purple-600 text-white uppercase tracking-widest px-4 py-2 rounded hover:bg-purple-700 disabled:opacity-50 transition-all"
+                        >
+                          {edit.saving ? 'Sauvegarde...' : 'Sauvegarder'}
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-xs text-gray-300">{new Date(i.created_at).toLocaleDateString('fr-FR')}</span>
-                    <button onClick={() => handleSupprimerInscription(i.id)} className="text-xs text-red-500 hover:text-red-700 uppercase tracking-widest transition-all">
-                      Supprimer
-                    </button>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}
@@ -298,6 +396,20 @@ export default function Admin() {
                     <h2 className="font-black uppercase text-gray-900 mb-1">{i.prenom_binome} {i.nom_binome}</h2>
                     <p className="text-gray-500 text-xs">{i.email_binome}</p>
                     <p className="text-gray-300 text-xs font-mono mt-1">{i.stripe_session_id}</p>
+                    {(i.code_pps || i.code_pps_binome) && (
+                      <div className="flex gap-3 mt-2">
+                        {i.code_pps && (
+                          <span className="text-xs font-mono text-purple-600 bg-purple-50 border border-purple-100 px-2 py-1 rounded">
+                            PPS1: {i.code_pps}
+                          </span>
+                        )}
+                        {i.code_pps_binome && (
+                          <span className="text-xs font-mono text-purple-600 bg-purple-50 border border-purple-100 px-2 py-1 rounded">
+                            PPS2: {i.code_pps_binome}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="text-right">
                     <p className="text-xl font-black text-green-600">890 EUR</p>

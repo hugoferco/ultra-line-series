@@ -1,5 +1,5 @@
-import Image from 'next/image'
 import Link from 'next/link'
+import AnimatedTitle from './components/AnimatedTitle'
 
 export default function Home() {
   return (
@@ -30,13 +30,7 @@ export default function Home() {
         </div>
 
         {/* Phrase inspirante */}
-        <div className="max-w-2xl">
-          <p className="text-xs tracking-[0.4em] text-white/40 uppercase mb-4">The Ultimate Outdoor Challenge</p>
-          <h1 className="text-4xl md:text-6xl font-black uppercase leading-tight tracking-tight">
-            Push Further.<br />
-            <span className="text-white/30">Together.</span>
-          </h1>
-        </div>
+        <AnimatedTitle />
 
         {/* 3 éléments contextuels mystérieux */}
         <div className="flex gap-12 md:gap-24 mt-4">
