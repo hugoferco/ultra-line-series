@@ -16,6 +16,10 @@ export default function MonEspace() {
   const [user, setUser] = useState(null)
   const [inscription, setInscription] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [pps, setPps] = useState('')
+  const [ppsBinome, setPpsBinome] = useState('')
+  const [ppsSaving, setPpsSaving] = useState(false)
+  const [ppsSaved, setPpsSaved] = useState(false)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -38,6 +42,10 @@ export default function MonEspace() {
           .single()
         
         setInscription(data)
+        if (data) {
+          setPps(data.code_pps || '')
+          setPpsBinome(data.code_pps_binome || '')
+        }
       }
 
       setLoading(false)
@@ -45,6 +53,15 @@ export default function MonEspace() {
 
     fetchData()
   }, [])
+
+  const handleSavePps = async () => {
+    if (!inscription) return
+    setPpsSaving(true)
+    await supabase.from('inscriptions').update({ code_pps: pps, code_pps_binome: ppsBinome }).eq('id', inscription.id)
+    setPpsSaving(false)
+    setPpsSaved(true)
+    setTimeout(() => setPpsSaved(false), 2000)
+  }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -136,6 +153,41 @@ export default function MonEspace() {
                   <span className="text-xs tracking-[0.3em] text-white/40 uppercase">Telephone</span>
                   <span className="text-sm text-white/70">{inscription.telephone_binome}</span>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Codes PPS */}
+          {inscription && (
+            <div className="border border-white/10 p-8 mb-6">
+              <p className="text-xs tracking-[0.4em] text-white/30 uppercase mb-2">Codes PPS</p>
+              <p className="text-xs text-white/20 mb-6">Le code PPS est requis pour votre dossier d'inscription.</p>
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs tracking-[0.3em] text-white/40 uppercase">Mon code PPS</label>
+                  <input
+                    value={pps}
+                    onChange={e => setPps(e.target.value)}
+                    placeholder="Ex: 1234567890123"
+                    className="bg-white/5 border border-white/10 text-white text-sm px-4 py-3 rounded focus:outline-none focus:border-white/30 transition-all placeholder:text-white/20"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs tracking-[0.3em] text-white/40 uppercase">Code PPS de mon binôme</label>
+                  <input
+                    value={ppsBinome}
+                    onChange={e => setPpsBinome(e.target.value)}
+                    placeholder="Ex: 1234567890123"
+                    className="bg-white/5 border border-white/10 text-white text-sm px-4 py-3 rounded focus:outline-none focus:border-white/30 transition-all placeholder:text-white/20"
+                  />
+                </div>
+                <button
+                  onClick={handleSavePps}
+                  disabled={ppsSaving}
+                  className="mt-2 bg-white text-black text-xs tracking-[0.3em] uppercase px-6 py-3 hover:bg-white/80 transition-all disabled:opacity-50 self-start"
+                >
+                  {ppsSaving ? 'Sauvegarde...' : ppsSaved ? 'Sauvegarde ✓' : 'Sauvegarder'}
+                </button>
               </div>
             </div>
           )}
