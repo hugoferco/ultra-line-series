@@ -22,8 +22,8 @@ export default function Admin() {
   const [candidatures, setCandidatures] = useState([])
   const [inscriptions, setInscriptions] = useState([])
   const [loading, setLoading] = useState(false)
-  const [ppsEdits, setPpsEdits] = useState({})
   const [copied, setCopied] = useState(null)
+  const [deleteErreur, setDeleteErreur] = useState('')
 
   const handleLogin = (e) => {
     e.preventDefault()
@@ -75,25 +75,23 @@ export default function Admin() {
     fetchCandidatures()
   }
 
-  const handlePpsChange = (id, field, value) => {
-    setPpsEdits(prev => ({ ...prev, [id]: { ...prev[id], [field]: value } }))
-  }
-
-  const handleSavePps = async (id) => {
-    setPpsEdits(prev => ({ ...prev, [id]: { ...prev[id], saving: true } }))
-    const edits = ppsEdits[id] || {}
-    await supabase.from('inscriptions').update({
-      code_pps: edits.code_pps ?? inscriptions.find(i => i.id === id)?.code_pps,
-      code_pps_binome: edits.code_pps_binome ?? inscriptions.find(i => i.id === id)?.code_pps_binome,
-    }).eq('id', id)
-    await fetchInscriptions()
-    setPpsEdits(prev => ({ ...prev, [id]: { ...prev[id], saving: false, saved: true } }))
-    setTimeout(() => setPpsEdits(prev => ({ ...prev, [id]: { ...prev[id], saved: false } })), 2000)
-  }
-
   const handleSupprimerInscription = async (id) => {
     if (!confirm('Supprimer cette inscription ?')) return
-    await supabase.from('inscriptions').delete().eq('id', id)
+    setDeleteErreur('')
+
+    const res = await fetch('/api/admin/delete-inscription', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
+
+    const data = await res.json()
+
+    if (!res.ok || data.error) {
+      setDeleteErreur(`Erreur suppression : ${data.error}`)
+      return
+    }
+
     fetchInscriptions()
   }
 
@@ -374,14 +372,15 @@ export default function Admin() {
                 Exporter CSV
               </button>
             </div>
+            {deleteErreur && (
+              <div className="mb-4 bg-red-50 border border-red-200 rounded p-3 text-red-600 text-xs">
+                {deleteErreur}
+              </div>
+            )}
             <div className="flex flex-col gap-3">
               {inscriptions.length === 0 ? (
                 <p className="text-gray-400 text-sm text-center py-20">Aucune inscription</p>
-              ) : inscriptions.map((i) => {
-                const edit = ppsEdits[i.id] || {}
-                const pps = edit.code_pps !== undefined ? edit.code_pps : (i.code_pps || '')
-                const ppsBinome = edit.code_pps_binome !== undefined ? edit.code_pps_binome : (i.code_pps_binome || '')
-                return (
+              ) : inscriptions.map((i) => (
                 <div key={i.id} className={`rounded-lg border p-5 ${i.paye ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}>
                   <div className="flex justify-between items-start mb-3">
                     <div>
@@ -400,35 +399,21 @@ export default function Admin() {
                       </button>
                     </div>
                   </div>
-                  <div className="mt-3 bg-purple-50 border border-purple-100 rounded p-3 flex flex-wrap gap-3 items-end">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] text-purple-400 uppercase tracking-widest">Code PPS Participant</label>
-                      <input
-                        value={pps}
-                        onChange={e => handlePpsChange(i.id, 'code_pps', e.target.value)}
-                        className="border border-purple-200 rounded px-3 py-1.5 text-xs text-gray-800 bg-white focus:outline-none focus:border-purple-400 w-44"
-                        placeholder="—"
-                      />
+                  <div className="mt-3 bg-purple-50 border border-purple-100 rounded p-3">
+                    <p className="text-[10px] text-purple-400 uppercase tracking-widest mb-2">Codes PPS</p>
+                    <div className="flex flex-wrap gap-6">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] text-purple-300 uppercase tracking-widest">Participant</span>
+                        <span className="text-xs text-gray-700 font-mono">{i.code_pps || <span className="text-gray-300 italic">non renseigné</span>}</span>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] text-purple-300 uppercase tracking-widest">Binôme</span>
+                        <span className="text-xs text-gray-700 font-mono">{i.code_pps_binome || <span className="text-gray-300 italic">non renseigné</span>}</span>
+                      </div>
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] text-purple-400 uppercase tracking-widest">Code PPS Binôme</label>
-                      <input
-                        value={ppsBinome}
-                        onChange={e => handlePpsChange(i.id, 'code_pps_binome', e.target.value)}
-                        className="border border-purple-200 rounded px-3 py-1.5 text-xs text-gray-800 bg-white focus:outline-none focus:border-purple-400 w-44"
-                        placeholder="—"
-                      />
-                    </div>
-                    <button
-                      onClick={() => handleSavePps(i.id)}
-                      disabled={edit.saving}
-                      className="text-[10px] uppercase tracking-widest px-4 py-1.5 rounded bg-purple-600 text-white hover:bg-purple-700 transition-all disabled:opacity-50"
-                    >
-                      {edit.saving ? 'Sauvegarde...' : edit.saved ? 'Sauvegardé ✓' : 'Sauvegarder'}
-                    </button>
                   </div>
                 </div>
-                )
+              ))
               })}
             </div>
           </div>
