@@ -11,8 +11,8 @@ const supabase = createClient(
 
 export default function Candidature() {
   const [formData, setFormData] = useState({
-    nom: '', prenom: '', adresse: '', telephone: '',
-    prenom_binome: '', nom_binome: '', email_binome: '', telephone_binome: '',
+    nom: '', prenom: '', email: '', adresse: '', telephone: '',
+    prenom_binome: '', nom_binome: '', email_binome: '', adresse_binome: '', telephone_binome: '',
     motivation: ''
   })
   const [status, setStatus] = useState(null)
@@ -42,7 +42,7 @@ export default function Candidature() {
           À bientôt<br /><span className="text-white/30">peut-être.</span>
         </h1>
         <p className="text-white/40 text-sm tracking-widest max-w-md mb-12">
-          Votre candidature a été transmise. Si vous êtes sélectionné, vous recevrez une lettre.
+          Votre candidature a été transmise. Si votre binôme est sélectionné, vous recevrez un email d'invitation.
         </p>
         <Link href="/" className="text-xs tracking-[0.4em] text-white/30 uppercase hover:text-white transition-all">
           ← Retour
@@ -61,7 +61,7 @@ export default function Candidature() {
           Postuler à<br /><span className="text-white/30">l'expérience.</span>
         </h1>
         <p className="text-white/30 text-xs tracking-widest">
-          Les candidatures sont examinées par l'équipe ULS. Seuls les profils sélectionnés seront contactés.
+          Les candidatures sont examinées par l'équipe ULS. Seuls les binômes sélectionnés seront contactés par email.
         </p>
       </div>
 
@@ -102,15 +102,15 @@ export default function Candidature() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-[10px] tracking-[0.3em] text-white/40 uppercase">Adresse</label>
+            <label className="text-[10px] tracking-[0.3em] text-white/40 uppercase">Email</label>
             <input
-              type="text"
-              name="adresse"
+              type="email"
+              name="email"
               required
-              value={formData.adresse}
+              value={formData.email}
               onChange={handleChange}
               className="bg-transparent border border-white/10 text-white text-sm px-4 py-3 focus:outline-none focus:border-white/40 transition-all placeholder:text-white/20"
-              placeholder="12 rue de la Montagne, 75001 Paris"
+              placeholder="jean@email.com"
             />
           </div>
 
@@ -124,6 +124,19 @@ export default function Candidature() {
               onChange={handleChange}
               className="bg-transparent border border-white/10 text-white text-sm px-4 py-3 focus:outline-none focus:border-white/40 transition-all placeholder:text-white/20"
               placeholder="+33 6 00 00 00 00"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-[10px] tracking-[0.3em] text-white/40 uppercase">Adresse</label>
+            <input
+              type="text"
+              name="adresse"
+              required
+              value={formData.adresse}
+              onChange={handleChange}
+              className="bg-transparent border border-white/10 text-white text-sm px-4 py-3 focus:outline-none focus:border-white/40 transition-all placeholder:text-white/20"
+              placeholder="12 rue de la Montagne, 75001 Paris"
             />
           </div>
         </div>
@@ -186,15 +199,28 @@ export default function Candidature() {
               placeholder="+33 6 00 00 00 00"
             />
           </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-[10px] tracking-[0.3em] text-white/40 uppercase">Adresse</label>
+            <input
+              type="text"
+              name="adresse_binome"
+              required
+              value={formData.adresse_binome}
+              onChange={handleChange}
+              className="bg-transparent border border-white/10 text-white text-sm px-4 py-3 focus:outline-none focus:border-white/40 transition-all placeholder:text-white/20"
+              placeholder="12 rue de la Montagne, 75001 Paris"
+            />
+          </div>
         </div>
 
         {/* Motivation */}
         <div className="flex flex-col gap-6">
           <p className="text-[10px] tracking-[0.4em] text-white/40 uppercase border-b border-white/10 pb-3">
-            Votre candidature
+            Expérience & Motivation
           </p>
           <div className="flex flex-col gap-2">
-            <label className="text-[10px] tracking-[0.3em] text-white/40 uppercase">Parcours sportif & motivation</label>
+            <label className="text-[10px] tracking-[0.3em] text-white/40 uppercase">Parcours sportif & motivation du binôme</label>
             <textarea
               name="motivation"
               required
@@ -202,7 +228,7 @@ export default function Candidature() {
               value={formData.motivation}
               onChange={handleChange}
               className="bg-transparent border border-white/10 text-white text-sm px-4 py-3 focus:outline-none focus:border-white/40 transition-all placeholder:text-white/20 resize-none"
-              placeholder="Décrivez votre parcours sportif, vos expériences en course, et pourquoi vous souhaitez vivre l'expérience ULS..."
+              placeholder="Décrivez le parcours sportif de votre binôme, vos expériences communes, et pourquoi vous souhaitez vivre l'expérience ULS..."
             />
           </div>
         </div>
@@ -218,7 +244,7 @@ export default function Candidature() {
           disabled={loading}
           className="border border-white/20 text-white text-xs tracking-[0.4em] uppercase px-10 py-4 hover:bg-white hover:text-black transition-all duration-300 disabled:opacity-40"
         >
-          {loading ? 'Envoi en cours...' : 'Soumettre ma candidature ↘'}
+          {loading ? 'Envoi en cours...' : 'Soumettre notre candidature ↘'}
         </button>
 
       </form>
