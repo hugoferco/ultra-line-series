@@ -22,8 +22,8 @@ export default function Admin() {
   const [candidatures, setCandidatures] = useState([])
   const [inscriptions, setInscriptions] = useState([])
   const [loading, setLoading] = useState(false)
-  const [ppsEdits, setPpsEdits] = useState({})
   const [copied, setCopied] = useState(null)
+  const [deleteErreur, setDeleteErreur] = useState('')
 
   const handleLogin = (e) => {
     e.preventDefault()
@@ -43,7 +43,10 @@ export default function Admin() {
   }
 
   const fetchInscriptions = async () => {
-    const { data } = await supabase.from('inscriptions').select('*').order('created_at', { ascending: false })
+    const { data } = await supabase
+      .from('inscriptions')
+      .select('*, candidatures(prenom, nom, email, telephone, adresse)')
+      .order('created_at', { ascending: false })
     if (data) setInscriptions(data)
   }
 
@@ -75,25 +78,23 @@ export default function Admin() {
     fetchCandidatures()
   }
 
-  const handlePpsChange = (id, field, value) => {
-    setPpsEdits(prev => ({ ...prev, [id]: { ...prev[id], [field]: value } }))
-  }
-
-  const handleSavePps = async (id) => {
-    setPpsEdits(prev => ({ ...prev, [id]: { ...prev[id], saving: true } }))
-    const edits = ppsEdits[id] || {}
-    await supabase.from('inscriptions').update({
-      code_pps: edits.code_pps ?? inscriptions.find(i => i.id === id)?.code_pps,
-      code_pps_binome: edits.code_pps_binome ?? inscriptions.find(i => i.id === id)?.code_pps_binome,
-    }).eq('id', id)
-    await fetchInscriptions()
-    setPpsEdits(prev => ({ ...prev, [id]: { ...prev[id], saving: false, saved: true } }))
-    setTimeout(() => setPpsEdits(prev => ({ ...prev, [id]: { ...prev[id], saved: false } })), 2000)
-  }
-
   const handleSupprimerInscription = async (id) => {
     if (!confirm('Supprimer cette inscription ?')) return
-    await supabase.from('inscriptions').delete().eq('id', id)
+    setDeleteErreur('')
+
+    const res = await fetch('/api/admin/delete-inscription', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
+
+    const data = await res.json()
+
+    if (!res.ok || data.error) {
+      setDeleteErreur(`Erreur suppression : ${data.error}`)
+      return
+    }
+
     fetchInscriptions()
   }
 
@@ -374,62 +375,58 @@ export default function Admin() {
                 Exporter CSV
               </button>
             </div>
+            {deleteErreur && (
+              <div className="mb-4 bg-red-50 border border-red-200 rounded p-3 text-red-600 text-xs">
+                {deleteErreur}
+              </div>
+            )}
             <div className="flex flex-col gap-3">
               {inscriptions.length === 0 ? (
                 <p className="text-gray-400 text-sm text-center py-20">Aucune inscription</p>
-              ) : inscriptions.map((i) => {
-                const edit = ppsEdits[i.id] || {}
-                const pps = edit.code_pps !== undefined ? edit.code_pps : (i.code_pps || '')
-                const ppsBinome = edit.code_pps_binome !== undefined ? edit.code_pps_binome : (i.code_pps_binome || '')
-                return (
+              ) : inscriptions.map((i) => (
                 <div key={i.id} className={`rounded-lg border p-5 ${i.paye ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}>
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <div className="flex items-center gap-3 mb-1">
-                        <h2 className="font-black uppercase text-gray-900">{i.prenom_binome} {i.nom_binome}</h2>
-                        <span className={`text-[10px] tracking-widest uppercase px-2 py-1 rounded font-bold ${i.paye ? 'bg-green-200 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                          {i.paye ? 'Payé' : 'En attente'}
-                        </span>
-                      </div>
-                      <p className="text-gray-500 text-xs">{i.email_binome} — {i.telephone_binome}</p>
-                    </div>
-                    <div className="flex items-center gap-4">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex items-center gap-3">
+                      <span className={`text-[10px] tracking-widest uppercase px-2 py-1 rounded font-bold ${i.paye ? 'bg-green-200 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                        {i.paye ? 'Payé' : 'En attente'}
+                      </span>
                       <span className="text-xs text-gray-300">{new Date(i.created_at).toLocaleDateString('fr-FR')}</span>
-                      <button onClick={() => handleSupprimerInscription(i.id)} className="text-xs text-red-500 hover:text-red-700 uppercase tracking-widest transition-all">
-                        Supprimer
-                      </button>
                     </div>
-                  </div>
-                  <div className="mt-3 bg-purple-50 border border-purple-100 rounded p-3 flex flex-wrap gap-3 items-end">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] text-purple-400 uppercase tracking-widest">Code PPS Participant</label>
-                      <input
-                        value={pps}
-                        onChange={e => handlePpsChange(i.id, 'code_pps', e.target.value)}
-                        className="border border-purple-200 rounded px-3 py-1.5 text-xs text-gray-800 bg-white focus:outline-none focus:border-purple-400 w-44"
-                        placeholder="—"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] text-purple-400 uppercase tracking-widest">Code PPS Binôme</label>
-                      <input
-                        value={ppsBinome}
-                        onChange={e => handlePpsChange(i.id, 'code_pps_binome', e.target.value)}
-                        className="border border-purple-200 rounded px-3 py-1.5 text-xs text-gray-800 bg-white focus:outline-none focus:border-purple-400 w-44"
-                        placeholder="—"
-                      />
-                    </div>
-                    <button
-                      onClick={() => handleSavePps(i.id)}
-                      disabled={edit.saving}
-                      className="text-[10px] uppercase tracking-widest px-4 py-1.5 rounded bg-purple-600 text-white hover:bg-purple-700 transition-all disabled:opacity-50"
-                    >
-                      {edit.saving ? 'Sauvegarde...' : edit.saved ? 'Sauvegardé ✓' : 'Sauvegarder'}
+                    <button onClick={() => handleSupprimerInscription(i.id)} className="text-xs text-red-500 hover:text-red-700 uppercase tracking-widest transition-all">
+                      Supprimer
                     </button>
                   </div>
+
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="bg-gray-50 rounded p-3">
+                      <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-2">Participant 1</p>
+                      <p className="text-sm font-bold text-gray-900 uppercase">{i.candidatures?.prenom} {i.candidatures?.nom}</p>
+                      <p className="text-xs text-gray-500 mt-1">{i.candidatures?.email || '—'}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{i.candidatures?.telephone || '—'}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded p-3">
+                      <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-2">Participant 2</p>
+                      <p className="text-sm font-bold text-gray-900 uppercase">{i.prenom_binome} {i.nom_binome}</p>
+                      <p className="text-xs text-gray-500 mt-1">{i.email_binome || '—'}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{i.telephone_binome || '—'}</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-purple-50 border border-purple-100 rounded p-3">
+                    <p className="text-[10px] text-purple-400 uppercase tracking-widest mb-2">Pass Prévention Santé (PPS)</p>
+                    <div className="flex flex-wrap gap-6">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] text-purple-300 uppercase tracking-widest">P1 — {i.candidatures?.prenom}</span>
+                        <span className="text-xs text-gray-700 font-mono">{i.code_pps || <span className="text-gray-300 italic">non renseigné</span>}</span>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] text-purple-300 uppercase tracking-widest">P2 — {i.prenom_binome}</span>
+                        <span className="text-xs text-gray-700 font-mono">{i.code_pps_binome || <span className="text-gray-300 italic">non renseigné</span>}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                )
-              })}
+              ))}
             </div>
           </div>
         )}
@@ -445,16 +442,26 @@ export default function Admin() {
               {inscriptions.filter(i => i.paye).length === 0 ? (
                 <p className="text-gray-400 text-sm text-center py-20">Aucun paiement</p>
               ) : inscriptions.filter(i => i.paye).map((i) => (
-                <div key={i.id} className="bg-white border border-gray-200 rounded-lg p-5 flex justify-between items-center">
-                  <div>
-                    <h2 className="font-black uppercase text-gray-900 mb-1">{i.prenom_binome} {i.nom_binome}</h2>
-                    <p className="text-gray-500 text-xs">{i.email_binome}</p>
-                    <p className="text-gray-300 text-xs font-mono mt-1">{i.stripe_session_id}</p>
+                <div key={i.id} className="bg-white border border-gray-200 rounded-lg p-5">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex gap-6">
+                      <div>
+                        <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-1">Participant 1</p>
+                        <p className="font-black uppercase text-gray-900 text-sm">{i.candidatures?.prenom} {i.candidatures?.nom}</p>
+                        <p className="text-gray-500 text-xs">{i.candidatures?.email || '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-1">Participant 2</p>
+                        <p className="font-black uppercase text-gray-900 text-sm">{i.prenom_binome} {i.nom_binome}</p>
+                        <p className="text-gray-500 text-xs">{i.email_binome}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xl font-black text-green-600">890 €</p>
+                      <p className="text-gray-400 text-xs">{new Date(i.created_at).toLocaleDateString('fr-FR')}</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xl font-black text-green-600">890 €</p>
-                    <p className="text-gray-400 text-xs">{new Date(i.created_at).toLocaleDateString('fr-FR')}</p>
-                  </div>
+                  <p className="text-gray-200 text-xs font-mono">{i.stripe_session_id}</p>
                 </div>
               ))}
             </div>
