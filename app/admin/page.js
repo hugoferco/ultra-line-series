@@ -23,6 +23,7 @@ export default function Admin() {
   const [inscriptions, setInscriptions] = useState([])
   const [loading, setLoading] = useState(false)
   const [ppsEdits, setPpsEdits] = useState({})
+  const [copied, setCopied] = useState(null)
 
   const handleLogin = (e) => {
     e.preventDefault()
@@ -48,12 +49,23 @@ export default function Admin() {
 
   const handleSelectionner = async (id) => {
     const token = generateToken()
-    await supabase.from('candidatures').update({ selectionne: true, token }).eq('id', id)
+    await supabase.from('candidatures').update({ selectionne: true, refuse: false, token }).eq('id', id)
     fetchCandidatures()
   }
 
   const handleDeselectionner = async (id) => {
     await supabase.from('candidatures').update({ selectionne: false, token: null }).eq('id', id)
+    fetchCandidatures()
+  }
+
+  const handleRefuser = async (id) => {
+    if (!confirm('Refuser cette candidature ?')) return
+    await supabase.from('candidatures').update({ refuse: true, selectionne: false, token: null }).eq('id', id)
+    fetchCandidatures()
+  }
+
+  const handleDeRefuser = async (id) => {
+    await supabase.from('candidatures').update({ refuse: false }).eq('id', id)
     fetchCandidatures()
   }
 
@@ -85,13 +97,20 @@ export default function Admin() {
     fetchInscriptions()
   }
 
+  const handleCopyLink = async (token) => {
+    const url = lienAcces(token)
+    await navigator.clipboard.writeText(url)
+    setCopied(token)
+    setTimeout(() => setCopied(null), 2000)
+  }
+
   const exportCSVCandidatures = () => {
-    const headers = ['Prenom', 'Nom', 'Telephone', 'Adresse', 'Prenom Binome', 'Nom Binome', 'Email Binome', 'Tel Binome', 'Motivation', 'Selectionne', 'Date']
+    const headers = ['Prenom', 'Nom', 'Email', 'Telephone', 'Adresse', 'Prenom Binome', 'Nom Binome', 'Email Binome', 'Tel Binome', 'Adresse Binome', 'Motivation', 'Statut', 'Date']
     const rows = candidatures.map(c => [
-      c.prenom, c.nom, c.telephone, c.adresse,
-      c.prenom_binome || '', c.nom_binome || '', c.email_binome || '', c.telephone_binome || '',
+      c.prenom, c.nom, c.email || '', c.telephone, c.adresse,
+      c.prenom_binome || '', c.nom_binome || '', c.email_binome || '', c.telephone_binome || '', c.adresse_binome || '',
       `"${c.motivation?.replace(/"/g, '""')}"`,
-      c.selectionne ? 'Oui' : 'Non',
+      c.selectionne ? 'Sélectionné' : c.refuse ? 'Refusé' : 'En attente',
       new Date(c.created_at).toLocaleDateString('fr-FR')
     ])
     const csv = [headers, ...rows].map(r => r.join(',')).join('\n')
@@ -114,11 +133,12 @@ export default function Admin() {
     const a = document.createElement('a'); a.href = url; a.download = 'inscriptions_uls.csv'; a.click()
   }
 
-  const lienNFC = (token) => `https://ultra-line-series.vercel.app/access/${token}`
+  const lienAcces = (token) => `https://ultra-line-series.vercel.app/access/${token}`
 
   const stats = {
     total: candidatures.length,
     selectionnes: candidatures.filter(c => c.selectionne).length,
+    refuses: candidatures.filter(c => c.refuse).length,
     inscrits: inscriptions.length,
     payes: inscriptions.filter(i => i.paye).length,
     ca: inscriptions.filter(i => i.paye).length * 890
@@ -150,7 +170,7 @@ export default function Admin() {
 
   return (
     <main className="min-h-screen bg-gray-50 text-gray-900">
-      
+
       {/* Topbar */}
       <div className="bg-white border-b border-gray-200 px-8 py-4 flex justify-between items-center">
         <div className="flex items-center gap-4">
@@ -163,13 +183,14 @@ export default function Admin() {
       <div className="max-w-6xl mx-auto px-8 py-10">
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-10">
           {[
             { label: 'Candidatures', value: stats.total, color: 'text-gray-900' },
-            { label: 'Selectionnes', value: stats.selectionnes, color: 'text-blue-600' },
+            { label: 'Sélectionnés', value: stats.selectionnes, color: 'text-blue-600' },
+            { label: 'Refusés', value: stats.refuses, color: 'text-red-500' },
             { label: 'Inscrits', value: stats.inscrits, color: 'text-orange-500' },
-            { label: 'Payes', value: stats.payes, color: 'text-green-600' },
-            { label: 'CA Total', value: `${stats.ca} EUR`, color: 'text-green-600' },
+            { label: 'Payés', value: stats.payes, color: 'text-green-600' },
+            { label: 'CA Total', value: `${stats.ca} €`, color: 'text-green-600' },
           ].map((s) => (
             <div key={s.label} className="bg-white border border-gray-200 rounded-lg p-5">
               <p className="text-xs text-gray-400 uppercase tracking-widest mb-1">{s.label}</p>
@@ -201,9 +222,10 @@ export default function Admin() {
               </button>
             </div>
 
+            {/* Sélectionnés */}
             {candidatures.filter(c => c.selectionne).length > 0 && (
               <div className="mb-6">
-                <p className="text-xs text-blue-600 uppercase tracking-widest mb-3 font-bold">Selectionnes</p>
+                <p className="text-xs text-blue-600 uppercase tracking-widest mb-3 font-bold">Sélectionnés — {candidatures.filter(c => c.selectionne).length}</p>
                 <div className="flex flex-col gap-3">
                   {candidatures.filter(c => c.selectionne).map((c) => (
                     <div key={c.id} className="bg-blue-50 border border-blue-200 rounded-lg p-5">
@@ -221,18 +243,44 @@ export default function Admin() {
                           </button>
                         </div>
                       </div>
+
+                      {/* Emails à contacter */}
+                      <div className="bg-blue-100 rounded p-3 mb-3">
+                        <p className="text-[10px] text-blue-500 uppercase tracking-widest mb-2 font-bold">Emails d'invitation à envoyer</p>
+                        <div className="flex flex-col gap-1">
+                          <p className="text-blue-800 text-xs">
+                            <span className="text-blue-500 uppercase tracking-wider text-[10px]">P1 :</span>{' '}
+                            <a href={`mailto:${c.email}`} className="font-mono hover:underline">{c.email || '—'}</a>
+                          </p>
+                          <p className="text-blue-800 text-xs">
+                            <span className="text-blue-500 uppercase tracking-wider text-[10px]">P2 :</span>{' '}
+                            <a href={`mailto:${c.email_binome}`} className="font-mono hover:underline">{c.email_binome || '—'}</a>
+                          </p>
+                        </div>
+                      </div>
+
                       {(c.prenom_binome || c.nom_binome) && (
-                        <div className="bg-blue-100 rounded p-3 mb-3">
+                        <div className="bg-blue-100/60 rounded p-3 mb-3">
                           <p className="text-[10px] text-blue-500 uppercase tracking-widest mb-1">Binôme</p>
                           <p className="text-blue-800 text-xs font-bold uppercase">{c.prenom_binome} {c.nom_binome}</p>
-                          <p className="text-blue-600 text-xs mt-0.5">{c.email_binome} — {c.telephone_binome}</p>
+                          <p className="text-blue-600 text-xs mt-0.5">{c.telephone_binome} — {c.adresse_binome || '—'}</p>
                         </div>
                       )}
+
                       <p className="text-gray-600 text-sm leading-relaxed mb-3">{c.motivation}</p>
+
                       {c.token && (
                         <div className="bg-blue-100 rounded p-3">
-                          <p className="text-xs text-blue-600 uppercase tracking-widest mb-1">Lien NFC</p>
-                          <p className="text-blue-800 text-xs font-mono break-all">{lienNFC(c.token)}</p>
+                          <div className="flex justify-between items-center mb-1">
+                            <p className="text-xs text-blue-600 uppercase tracking-widest">Lien d'invitation</p>
+                            <button
+                              onClick={() => handleCopyLink(c.token)}
+                              className="text-[10px] uppercase tracking-widest px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 transition-all"
+                            >
+                              {copied === c.token ? 'Copié ✓' : 'Copier'}
+                            </button>
+                          </div>
+                          <p className="text-blue-800 text-xs font-mono break-all">{lienAcces(c.token)}</p>
                         </div>
                       )}
                     </div>
@@ -241,42 +289,79 @@ export default function Admin() {
               </div>
             )}
 
-            <div>
-              <p className="text-xs text-gray-400 uppercase tracking-widest mb-3 font-bold">En attente</p>
-              {loading ? (
-                <p className="text-gray-400 text-sm text-center py-20">Chargement...</p>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  {candidatures.filter(c => !c.selectionne).map((c) => (
-                    <div key={c.id} className="bg-white border border-gray-200 rounded-lg p-5">
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <h2 className="font-black uppercase text-gray-900">{c.prenom} {c.nom}</h2>
-                          <p className="text-gray-500 text-xs mt-1">{c.telephone} — {c.adresse}</p>
+            {/* En attente */}
+            {candidatures.filter(c => !c.selectionne && !c.refuse).length > 0 && (
+              <div className="mb-6">
+                <p className="text-xs text-gray-400 uppercase tracking-widest mb-3 font-bold">En attente — {candidatures.filter(c => !c.selectionne && !c.refuse).length}</p>
+                {loading ? (
+                  <p className="text-gray-400 text-sm text-center py-20">Chargement...</p>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {candidatures.filter(c => !c.selectionne && !c.refuse).map((c) => (
+                      <div key={c.id} className="bg-white border border-gray-200 rounded-lg p-5">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <h2 className="font-black uppercase text-gray-900">{c.prenom} {c.nom}</h2>
+                            <p className="text-gray-500 text-xs mt-1">
+                              {c.email && <><a href={`mailto:${c.email}`} className="hover:underline">{c.email}</a> — </>}
+                              {c.telephone} — {c.adresse}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-gray-300">{new Date(c.created_at).toLocaleDateString('fr-FR')}</span>
+                            <button onClick={() => handleSelectionner(c.id)} className="text-xs bg-black text-white uppercase tracking-widest px-4 py-2 rounded hover:bg-gray-800 transition-all">
+                              Sélectionner
+                            </button>
+                            <button onClick={() => handleRefuser(c.id)} className="text-xs bg-red-50 text-red-500 border border-red-200 uppercase tracking-widest px-3 py-2 rounded hover:bg-red-100 transition-all">
+                              Refuser
+                            </button>
+                            <button onClick={() => handleSupprimerCandidature(c.id)} className="text-xs text-gray-400 hover:text-red-500 uppercase tracking-widest transition-all">
+                              ✕
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs text-gray-300">{new Date(c.created_at).toLocaleDateString('fr-FR')}</span>
-                          <button onClick={() => handleSelectionner(c.id)} className="text-xs bg-black text-white uppercase tracking-widest px-4 py-2 rounded hover:bg-gray-800 transition-all">
-                            Selectionner
+                        {(c.prenom_binome || c.nom_binome) && (
+                          <div className="bg-gray-50 rounded p-3 mb-3">
+                            <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-1">Binôme</p>
+                            <p className="text-gray-700 text-xs font-bold uppercase">{c.prenom_binome} {c.nom_binome}</p>
+                            <p className="text-gray-500 text-xs mt-0.5">{c.email_binome} — {c.telephone_binome}</p>
+                            {c.adresse_binome && <p className="text-gray-400 text-xs mt-0.5">{c.adresse_binome}</p>}
+                          </div>
+                        )}
+                        <p className="text-gray-600 text-sm leading-relaxed">{c.motivation}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Refusés */}
+            {candidatures.filter(c => c.refuse).length > 0 && (
+              <div>
+                <p className="text-xs text-red-400 uppercase tracking-widest mb-3 font-bold">Refusés — {candidatures.filter(c => c.refuse).length}</p>
+                <div className="flex flex-col gap-2">
+                  {candidatures.filter(c => c.refuse).map((c) => (
+                    <div key={c.id} className="bg-red-50 border border-red-100 rounded-lg p-4">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h2 className="font-bold uppercase text-gray-500 text-sm">{c.prenom} {c.nom}</h2>
+                          <p className="text-gray-400 text-xs mt-0.5">{c.email || c.telephone} — {new Date(c.created_at).toLocaleDateString('fr-FR')}</p>
+                        </div>
+                        <div className="flex gap-3">
+                          <button onClick={() => handleDeRefuser(c.id)} className="text-xs text-gray-500 hover:text-gray-700 uppercase tracking-widest transition-all">
+                            Remettre en attente
                           </button>
-                          <button onClick={() => handleSupprimerCandidature(c.id)} className="text-xs text-red-500 hover:text-red-700 uppercase tracking-widest transition-all">
+                          <button onClick={() => handleSupprimerCandidature(c.id)} className="text-xs text-red-400 hover:text-red-600 uppercase tracking-widest transition-all">
                             Supprimer
                           </button>
                         </div>
                       </div>
-                      {(c.prenom_binome || c.nom_binome) && (
-                        <div className="bg-gray-50 rounded p-3 mb-3">
-                          <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-1">Binôme</p>
-                          <p className="text-gray-700 text-xs font-bold uppercase">{c.prenom_binome} {c.nom_binome}</p>
-                          <p className="text-gray-500 text-xs mt-0.5">{c.email_binome} — {c.telephone_binome}</p>
-                        </div>
-                      )}
-                      <p className="text-gray-600 text-sm leading-relaxed">{c.motivation}</p>
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -303,7 +388,7 @@ export default function Admin() {
                       <div className="flex items-center gap-3 mb-1">
                         <h2 className="font-black uppercase text-gray-900">{i.prenom_binome} {i.nom_binome}</h2>
                         <span className={`text-[10px] tracking-widest uppercase px-2 py-1 rounded font-bold ${i.paye ? 'bg-green-200 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                          {i.paye ? 'Paye' : 'En attente'}
+                          {i.paye ? 'Payé' : 'En attente'}
                         </span>
                       </div>
                       <p className="text-gray-500 text-xs">{i.email_binome} — {i.telephone_binome}</p>
@@ -339,7 +424,7 @@ export default function Admin() {
                       disabled={edit.saving}
                       className="text-[10px] uppercase tracking-widest px-4 py-1.5 rounded bg-purple-600 text-white hover:bg-purple-700 transition-all disabled:opacity-50"
                     >
-                      {edit.saving ? 'Sauvegarde...' : edit.saved ? 'Sauvegarde ✓' : 'Sauvegarder'}
+                      {edit.saving ? 'Sauvegarde...' : edit.saved ? 'Sauvegardé ✓' : 'Sauvegarder'}
                     </button>
                   </div>
                 </div>
@@ -353,8 +438,8 @@ export default function Admin() {
         {onglet === 'paiements' && (
           <div>
             <div className="flex justify-between items-center mb-4">
-              <p className="text-sm text-gray-500">{inscriptions.filter(i => i.paye).length} paiements confirmes</p>
-              <p className="text-lg font-black text-green-600">{stats.ca} EUR</p>
+              <p className="text-sm text-gray-500">{inscriptions.filter(i => i.paye).length} paiements confirmés</p>
+              <p className="text-lg font-black text-green-600">{stats.ca} €</p>
             </div>
             <div className="flex flex-col gap-3">
               {inscriptions.filter(i => i.paye).length === 0 ? (
@@ -367,7 +452,7 @@ export default function Admin() {
                     <p className="text-gray-300 text-xs font-mono mt-1">{i.stripe_session_id}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xl font-black text-green-600">890 EUR</p>
+                    <p className="text-xl font-black text-green-600">890 €</p>
                     <p className="text-gray-400 text-xs">{new Date(i.created_at).toLocaleDateString('fr-FR')}</p>
                   </div>
                 </div>
@@ -376,8 +461,8 @@ export default function Admin() {
 
             {inscriptions.filter(i => i.paye).length > 0 && (
               <div className="border-t border-gray-200 mt-8 pt-8 flex justify-between items-center">
-                <p className="text-sm text-gray-500 uppercase tracking-widest">Total encaisse</p>
-                <p className="text-3xl font-black text-green-600">{stats.ca} EUR</p>
+                <p className="text-sm text-gray-500 uppercase tracking-widest">Total encaissé</p>
+                <p className="text-3xl font-black text-green-600">{stats.ca} €</p>
               </div>
             )}
           </div>
